@@ -46,7 +46,7 @@ public final class WheelView extends View {
     private final List<OnLoopScrollListener> listeners = new ArrayList<>();
 
     @NonNull
-    private final SimpleOnGestureListener onGestureListener  = new WheelViewGestureListener();
+    private final SimpleOnGestureListener onGestureListener = new WheelViewGestureListener();
     private GestureDetector gestureDetector;
 
     private final Paint topBottomTextPaint = new Paint();  //paint that draw top and bottom text
@@ -82,6 +82,8 @@ public final class WheelView extends View {
     private int widgetHeight;
     private int circularRadius;
     private int widgetWidth;
+
+    private String fontTypeface;
 
     public Handler handler = new Handler(msg -> {
         switch (msg.what) {
@@ -162,20 +164,27 @@ public final class WheelView extends View {
             throw new IllegalArgumentException("items list must not be null!");
         }
 
+        Typeface typeface;
+        if (fontTypeface != null) {
+            typeface = Typeface.createFromAsset(getContext().getAssets(), fontTypeface);
+        } else {
+            typeface = Typeface.MONOSPACE;
+        }
+
         topBottomTextPaint.setColor(overflowTextColor);
         topBottomTextPaint.setAntiAlias(true);
-        topBottomTextPaint.setTypeface(Typeface.MONOSPACE);
+        topBottomTextPaint.setTypeface(typeface);
         topBottomTextPaint.setTextSize(textSize);
 
         centerTextPaint.setColor(contentTextColor);
         centerTextPaint.setAntiAlias(true);
         centerTextPaint.setTextScaleX(1.05F);
-        centerTextPaint.setTypeface(Typeface.MONOSPACE);
+        centerTextPaint.setTypeface(typeface);
         centerTextPaint.setTextSize(textSize);
 
         centerLinePaint.setColor(lineColor);
         centerLinePaint.setAntiAlias(true);
-        centerLinePaint.setTypeface(Typeface.MONOSPACE);
+        centerLinePaint.setTypeface(typeface);
         centerLinePaint.setTextSize(textSize);
 
         measureTextWidthHeight();
@@ -203,7 +212,8 @@ public final class WheelView extends View {
         final Rect rect = new Rect();
 
         for (int i = 0; i < items.size(); i++) {
-            final String s1 = (String) items.get(i);
+            // support lowerCase month names
+            final String s1 = (String) items.get(i) + "j";
 
             centerTextPaint.getTextBounds(s1, 0, s1.length(), rect);
 
@@ -405,7 +415,7 @@ public final class WheelView extends View {
     }
 
     private void onItemSelected() {
-        for (OnLoopScrollListener onLoopScrollListener: listeners) {
+        for (OnLoopScrollListener onLoopScrollListener : listeners) {
             onLoopScrollListener.onLoopScrollFinish(items.get(selectedIndex), items.indexOf(items.get(selectedIndex)));
         }
     }
@@ -427,6 +437,15 @@ public final class WheelView extends View {
         cancelSchedule();
         int velocityFling = 20;
         scheduledFuture = executorService.scheduleWithFixedDelay(new FlingRunnable(velocityY), 0, velocityFling, TimeUnit.MILLISECONDS);
+    }
+
+    /**
+     * This fixes the item amount difference
+     *
+     * @param delta Number of items
+     */
+    public void forceScroll(int delta) {
+        totalScrollY += delta * itemHeight;
     }
 
     class WheelViewGestureListener extends SimpleOnGestureListener {
@@ -528,7 +547,7 @@ public final class WheelView extends View {
         public void run() {
             if (velocity == Integer.MAX_VALUE) {
                 if (Math.abs(velocityY) > 2000F) {
-                    velocity = (velocityY > 0.0F) ? 2000F : - 2000F;
+                    velocity = (velocityY > 0.0F) ? 2000F : -2000F;
                 } else {
                     velocity = velocityY;
                 }
@@ -560,6 +579,19 @@ public final class WheelView extends View {
             velocity = (velocity < 0.0F) ? velocity + 20F : velocity - 20F;
             handler.sendEmptyMessage(MSG_INVALIDATE);
         }
+    }
+
+    public String getFontTypeface() {
+        return fontTypeface;
+    }
+
+    public void setFontTypeface(String fontTypeface) {
+        this.fontTypeface = fontTypeface;
+        initData();
+    }
+
+    public int getContentTextColor() {
+        return contentTextColor;
     }
 
     public interface OnLoopScrollListener {
