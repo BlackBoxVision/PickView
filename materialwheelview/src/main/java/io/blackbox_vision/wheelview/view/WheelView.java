@@ -9,16 +9,21 @@ import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.os.Build;
 import android.os.Handler;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
 import java.util.ArrayList;
+import java.util.Dictionary;
+import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -46,7 +51,7 @@ public final class WheelView extends View {
     private final List<OnLoopScrollListener> listeners = new ArrayList<>();
 
     @NonNull
-    private final SimpleOnGestureListener onGestureListener  = new WheelViewGestureListener();
+    private final SimpleOnGestureListener onGestureListener = new WheelViewGestureListener();
     private GestureDetector gestureDetector;
 
     private final Paint topBottomTextPaint = new Paint();  //paint that draw top and bottom text
@@ -83,6 +88,8 @@ public final class WheelView extends View {
     private int circularRadius;
     private int widgetWidth;
 
+    private String fontTypeface;
+
     public Handler handler = new Handler(msg -> {
         switch (msg.what) {
             case MSG_INVALIDATE:
@@ -98,6 +105,7 @@ public final class WheelView extends View {
 
         return false;
     });
+    private Map<String, Integer> mTextWidths = new HashMap<>();
 
     public WheelView(Context context) {
         this(context, null);
@@ -162,23 +170,33 @@ public final class WheelView extends View {
             throw new IllegalArgumentException("items list must not be null!");
         }
 
+        Typeface typeface;
+        if (fontTypeface != null) {
+            typeface = Typeface.createFromAsset(getContext().getAssets(), fontTypeface);
+        } else {
+            typeface = Typeface.MONOSPACE;
+        }
+
         topBottomTextPaint.setColor(overflowTextColor);
         topBottomTextPaint.setAntiAlias(true);
-        topBottomTextPaint.setTypeface(Typeface.MONOSPACE);
+        topBottomTextPaint.setTypeface(typeface);
         topBottomTextPaint.setTextSize(textSize);
 
         centerTextPaint.setColor(contentTextColor);
         centerTextPaint.setAntiAlias(true);
         centerTextPaint.setTextScaleX(1.05F);
-        centerTextPaint.setTypeface(Typeface.MONOSPACE);
+        centerTextPaint.setTypeface(typeface);
         centerTextPaint.setTextSize(textSize);
 
         centerLinePaint.setColor(lineColor);
         centerLinePaint.setAntiAlias(true);
-        centerLinePaint.setTypeface(Typeface.MONOSPACE);
+        centerLinePaint.setTypeface(typeface);
         centerLinePaint.setTextSize(textSize);
 
         measureTextWidthHeight();
+
+//        topBottomTextPaint.setTextAlign(Paint.Align.CENTER);
+//        centerTextPaint.setTextAlign(Paint.Align.CENTER);
 
         //计算半圆周 -- maxTextHeight * lineSpacingMultiplier 表示每个item的高度  drawItemsCount = 7
         //实际显示5个,留两个是在圆周的上下面
@@ -203,7 +221,11 @@ public final class WheelView extends View {
         final Rect rect = new Rect();
 
         for (int i = 0; i < items.size(); i++) {
-            final String s1 = (String) items.get(i);
+
+            String item = (String) items.get(i);
+
+            // support lowerCase month names
+            final String s1 = item + "j";
 
             centerTextPaint.getTextBounds(s1, 0, s1.length(), rect);
 
@@ -212,6 +234,12 @@ public final class WheelView extends View {
 
             maxTextWidth = (textWidth > maxTextWidth) ? textWidth : maxTextWidth;
             maxTextHeight = (textHeight > maxTextHeight) ? textHeight : maxTextHeight;
+
+            centerTextPaint.getTextBounds(s1, 0, s1.length() - 1, rect);
+
+            int originalTextWidth = rect.width();
+
+            mTextWidths.put(item, originalTextWidth);
         }
     }
 
@@ -306,6 +334,15 @@ public final class WheelView extends View {
                 //scale offset = Math.sin(radian) -> 0 - 1
                 canvas.scale(1.0F, (float) Math.sin(radian));
 
+                String text = itemCount[count];
+
+                int textWidth = maxTextWidth;
+                if (mTextWidths.containsKey(text)) {
+                    textWidth = mTextWidths.get(text);
+                }
+
+                float paddingLeftRight = this.paddingLeftRight + (maxTextWidth - textWidth) / 2.0f;
+
                 if (translateY <= topLineY || maxTextHeight + translateY >= bottomLineY) {
                     final int diff = (translateY <= topLineY) ? topLineY - translateY : bottomLineY - translateY;
 
@@ -315,19 +352,20 @@ public final class WheelView extends View {
                     //draw text y between 0 -> topLineY,include incomplete text
                     canvas.save();
                     canvas.clipRect(0, 0, widgetWidth, diff);
-                    canvas.drawText(itemCount[count], paddingLeftRight, maxTextHeight, topBottomPaint);
+                    canvas.drawText(text, paddingLeftRight, maxTextHeight, topBottomPaint);
                     canvas.restore();
                     canvas.save();
                     canvas.clipRect(0, diff, widgetWidth, (int) (itemHeight));
-                    canvas.drawText(itemCount[count], paddingLeftRight, maxTextHeight, centerPaint);
+                    canvas.drawText(text, paddingLeftRight, maxTextHeight, centerPaint);
                     canvas.restore();
 
                 } else if (translateY >= topLineY && maxTextHeight + translateY <= bottomLineY) {
                     //draw center complete text
                     canvas.clipRect(0, 0, widgetWidth, (int) (itemHeight));
-                    canvas.drawText(itemCount[count], paddingLeftRight, maxTextHeight, centerTextPaint);
+
+                    canvas.drawText(text, paddingLeftRight, maxTextHeight, centerTextPaint);
                     //center one indicate selected item
-                    selectedIndex = items.indexOf(itemCount[count]);
+                    selectedIndex = items.indexOf(text);
                 }
 
                 canvas.restore();
@@ -405,7 +443,7 @@ public final class WheelView extends View {
     }
 
     private void onItemSelected() {
-        for (OnLoopScrollListener onLoopScrollListener: listeners) {
+        for (OnLoopScrollListener onLoopScrollListener : listeners) {
             onLoopScrollListener.onLoopScrollFinish(items.get(selectedIndex), items.indexOf(items.get(selectedIndex)));
         }
     }
@@ -417,7 +455,7 @@ public final class WheelView extends View {
         }
     }
 
-    private void startSmoothScrollTo() {
+    public void startSmoothScrollTo() {
         int offset = (int) (totalScrollY % (itemHeight));
         cancelSchedule();
         scheduledFuture = executorService.scheduleWithFixedDelay(new HalfHeightRunnable(offset), 0, 10, TimeUnit.MILLISECONDS);
@@ -427,6 +465,15 @@ public final class WheelView extends View {
         cancelSchedule();
         int velocityFling = 20;
         scheduledFuture = executorService.scheduleWithFixedDelay(new FlingRunnable(velocityY), 0, velocityFling, TimeUnit.MILLISECONDS);
+    }
+
+    /**
+     * This fixes the item amount difference
+     *
+     * @param delta Number of items
+     */
+    public void forceScroll(int delta) {
+        totalScrollY += delta * itemHeight;
     }
 
     class WheelViewGestureListener extends SimpleOnGestureListener {
@@ -528,13 +575,11 @@ public final class WheelView extends View {
         public void run() {
             if (velocity == Integer.MAX_VALUE) {
                 if (Math.abs(velocityY) > 2000F) {
-                    velocity = (velocityY > 0.0F) ? 2000F : - 2000F;
+                    velocity = (velocityY > 0.0F) ? 2000F : -2000F;
                 } else {
                     velocity = velocityY;
                 }
             }
-
-            Log.i(TAG, "velocity -> " + velocity);
 
             if (Math.abs(velocity) >= 0.0F && Math.abs(velocity) <= 20F) {
                 cancelSchedule();
@@ -560,6 +605,19 @@ public final class WheelView extends View {
             velocity = (velocity < 0.0F) ? velocity + 20F : velocity - 20F;
             handler.sendEmptyMessage(MSG_INVALIDATE);
         }
+    }
+
+    public String getFontTypeface() {
+        return fontTypeface;
+    }
+
+    public void setFontTypeface(String fontTypeface) {
+        this.fontTypeface = fontTypeface;
+        initData();
+    }
+
+    public int getContentTextColor() {
+        return contentTextColor;
     }
 
     public interface OnLoopScrollListener {

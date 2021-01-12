@@ -1,6 +1,6 @@
 package io.blackbox_vision.wheelview.data;
 
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 
 
 public interface ItemMapper {

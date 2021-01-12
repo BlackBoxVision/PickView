@@ -18,6 +18,9 @@
         <attr name="datePickerWheelViewMinYear" format="integer"/>
         <attr name="datePickerWheelViewMaxYear" format="integer"/>
         <attr name="datePickerWheelViewShowShortMonths" format="boolean"/>
+        <attr name="datePickerWheelViewShowLongMonths" format="boolean"/>
         <attr name="datePickerWheelViewShowDayMonthYear" format="boolean"/>
+        <attr name="datePickerWheelViewIsLoopEnabled" format="boolean"/>
+        <attr name="datePickerWheelViewFontTypeface" format="string"/>
     </declare-styleable>
 </resources>

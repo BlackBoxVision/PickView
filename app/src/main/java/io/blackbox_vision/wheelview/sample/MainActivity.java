@@ -2,9 +2,9 @@ package io.blackbox_vision.wheelview.sample;
 
 import android.graphics.Color;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.Toolbar;
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 import android.widget.Toast;
 
 import io.blackbox_vision.wheelview.view.DatePickerPopUpWindow;
